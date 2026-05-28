@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="snore_recordings/" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="database" path="deep_sleep_alarm.db" />
+    </device-transfer>
+</data-extraction-rules>

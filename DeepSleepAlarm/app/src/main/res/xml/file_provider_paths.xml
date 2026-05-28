@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- アプリ内部ストレージ（いびき録音ファイルの共有用） -->
+    <files-path
+        name="snore_recordings"
+        path="snore_recordings/" />
+    <!-- キャッシュディレクトリ -->
+    <cache-path
+        name="cache"
+        path="." />
+</paths>

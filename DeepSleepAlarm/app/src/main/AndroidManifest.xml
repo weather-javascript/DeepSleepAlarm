@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.deepsleep.alarm">
+
+    <!-- ============================================================
+         権限（Permissions）宣言
+         ============================================================ -->
+
+    <!-- マイク：いびき録音用 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- 外部ストレージ読み込み：音楽ファイル選択用（Android 12以下） -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- メディアファイル読み込み：音楽ファイル選択用（Android 13以上） -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
+    <!-- 通知投稿：Android 13以上でのアラーム・計測中通知用 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- 正確なアラーム：指定時刻に確実にアラームを起動するため -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Android 12以上での正確なアラーム代替権限 -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
+    <!-- フォアグラウンドサービス：バックグラウンド計測を継続するため -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Android 14以上：フォアグラウンドサービスのタイプ指定 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+
+    <!-- 端末のスリープを防ぐ：計測中の画面ロック対策 -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- 起動時にアラームをリストア：再起動後もアラームを復元するため -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- バイブレーション：アラーム時の振動 -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- ウィンドウをフルスクリーン表示：ロック画面上へのアラーム表示 -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+
+    <!-- ハードウェア機能の要件 -->
+    <uses-feature
+        android:name="android.hardware.sensor.accelerometer"
+        android:required="true" />
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="true" />
+
+    <application
+        android:name=".DeepSleepApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.DeepSleepAlarm"
+        tools:targetApi="31">
+
+        <!-- ============================================================
+             Activity 宣言
+             ============================================================ -->
+
+        <!-- メイン画面（アラーム設定・統計表示） -->
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- アラーム発火時に表示されるフルスクリーンActivity -->
+        <activity
+            android:name=".ui.AlarmRingActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="com.deepsleep.alarm.ACTION_ALARM_RING" />
+            </intent-filter>
+        </activity>
+
+        <!-- ============================================================
+             Service 宣言
+             ============================================================ -->
+
+        <!-- 睡眠計測フォアグラウンドサービス
+             （加速度センサー取得・いびき録音・データ記録を担当）
+             Android 14以降: foregroundServiceType を必ず指定 -->
+        <service
+            android:name=".service.SleepMonitorService"
+            android:exported="false"
+            android:foregroundServiceType="microphone|health"
+            android:stopWithTask="false" />
+
+        <!-- アラーム再生フォアグラウンドサービス -->
+        <service
+            android:name=".service.AlarmPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <!-- ============================================================
+             BroadcastReceiver 宣言
+             ============================================================ -->
+
+        <!-- AlarmManager からのアラームを受信するレシーバー -->
+        <receiver
+            android:name=".service.AlarmReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.deepsleep.alarm.ACTION_ALARM_TRIGGER" />
+                <action android:name="com.deepsleep.alarm.ACTION_SMART_CHECK" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 端末再起動後にアラームを復元するレシーバー -->
+        <receiver
+            android:name=".service.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ============================================================
+             Provider 宣言（FileProvider：録音ファイル共有用）
+             ============================================================ -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_provider_paths" />
+        </provider>
+
+    </application>
+
+</manifest>

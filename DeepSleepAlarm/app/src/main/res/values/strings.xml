@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">熟睡アラーム</string>
+    <string name="nav_alarm">アラーム</string>
+    <string name="nav_statistics">睡眠統計</string>
+    <string name="nav_snore">いびき録音</string>
+    <string name="btn_start_monitoring">計測を開始</string>
+    <string name="btn_stop_monitoring">計測を停止</string>
+    <string name="btn_select_music">アラーム音を選択</string>
+    <string name="btn_set_time">時刻を設定</string>
+    <string name="label_alarm_time">アラーム時刻</string>
+    <string name="label_smart_window">スマートウィンドウ</string>
+    <string name="label_selected_music">選択中のアラーム音</string>
+    <string name="no_music_selected">音楽が選択されていません（デフォルト音を使用）</string>
+</resources>
