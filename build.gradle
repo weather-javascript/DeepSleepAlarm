@@ -17,11 +17,5 @@ plugins {
     id 'org.jetbrains.kotlin.android' version '1.9.22' apply false
 }
 
-// MPAndroidChart のリポジトリ（JitPack）
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url 'https://jitpack.io' }
     }
 }
