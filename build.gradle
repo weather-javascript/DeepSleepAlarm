@@ -1,12 +1,5 @@
-python3 << 'PYEOF'
-content = """plugins {
+plugins {
     id 'com.android.application' version '8.2.2' apply false
     id 'com.android.library' version '8.2.2' apply false
     id 'org.jetbrains.kotlin.android' version '1.9.22' apply false
 }
-"""
-with open('build.gradle', 'w') as f:
-    f.write(content)
-print("Done")
-print(open('build.gradle').read())
-PYEOF
