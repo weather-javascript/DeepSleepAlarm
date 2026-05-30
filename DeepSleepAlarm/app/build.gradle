@@ -4,20 +4,52 @@ plugins {
     id 'kotlin-kapt'
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  署名設定の読み込み
+//
+//  優先順位:
+//    1. GitHub Actions: -P オプションで渡された Gradle プロパティ
+//    2. ローカル開発:   プロジェクトルートの keystore.properties ファイル
+//
+//  keystore.properties の形式（.gitignore に追加して絶対にコミットしないこと）:
+//    storeFile=../your-release-key.jks
+//    storePassword=your_store_password
+//    keyAlias=your_key_alias
+//    keyPassword=your_key_password
+// ─────────────────────────────────────────────────────────────────────────────
+def keystoreProps = new Properties()
+def keystorePropsFile = rootProject.file("keystore.properties")
+
+// CI 環境（GitHub Actions）では -P オプションで署名情報が渡される
+def ciStoreFile     = findProperty('android.injected.signing.store.file')
+def ciStorePassword = findProperty('android.injected.signing.store.password')
+def ciKeyAlias      = findProperty('android.injected.signing.key.alias')
+def ciKeyPassword   = findProperty('android.injected.signing.key.password')
+
+// ローカル環境では keystore.properties を読み込む
+def localSigningAvailable = false
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+    localSigningAvailable = true
+}
+
+// versionName / versionCode を -P オプションで上書き可能にする
+def buildVersionName = findProperty('versionName') ?: '1.0.0'
+def buildVersionCode = (findProperty('versionCode') ?: '1').toInteger()
+
 android {
     namespace 'com.deepsleep.alarm'
     compileSdk 34
 
     defaultConfig {
         applicationId "com.deepsleep.alarm"
-        minSdk 26          // Android 8.0以上（フォアグラウンドサービス必須APIの下限）
-        targetSdk 34       // Android 14
-        versionCode 1
-        versionName "1.0.0"
+        minSdk 26
+        targetSdk 34
+        versionCode buildVersionCode
+        versionName buildVersionName
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-        // Room スキーマエクスポート設定
         kapt {
             arguments {
                 arg("room.schemaLocation", "$projectDir/schemas")
@@ -25,12 +57,41 @@ android {
         }
     }
 
+    // ─────────────────────────────────────────────
+    //  署名設定
+    // ─────────────────────────────────────────────
+    signingConfigs {
+        release {
+            if (ciStoreFile) {
+                // ① CI/CD（GitHub Actions）: -P オプションから読み込む
+                storeFile     file(ciStoreFile)
+                storePassword ciStorePassword
+                keyAlias      ciKeyAlias
+                keyPassword   ciKeyPassword
+            } else if (localSigningAvailable) {
+                // ② ローカル開発: keystore.properties から読み込む
+                storeFile     file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias      keystoreProps['keyAlias']
+                keyPassword   keystoreProps['keyPassword']
+            }
+            // ③ どちらも未設定の場合は debug 署名にフォールバック（後述）
+        }
+    }
+
     buildTypes {
         release {
-            minifyEnabled true
+            minifyEnabled   true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.debug  // CI/CDでは別途署名設定を行うこと
+
+            // 署名設定が有効な場合のみ release signingConfig を使用
+            if (ciStoreFile || localSigningAvailable) {
+                signingConfig signingConfigs.release
+            } else {
+                // 署名情報なし（ローカルの動作確認目的のみ）
+                signingConfig signingConfigs.debug
+            }
         }
         debug {
             applicationIdSuffix ".debug"

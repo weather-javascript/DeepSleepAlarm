@@ -1,0 +1,389 @@
+##############################################################################
+#  熟睡アラーム — GitHub Actions CI/CD パイプライン
+#
+#  トリガー別の動作:
+#  ┌─────────────────────────┬──────────────────────────────────────────┐
+#  │ トリガー                │ 実行内容                                 │
+#  ├─────────────────────────┼──────────────────────────────────────────┤
+#  │ PR → main/develop       │ Lint + Unit Test + Debug APK ビルド     │
+#  │ push → develop          │ 上記 + Debug APK を Artifacts に保存    │
+#  │ push → main             │ 上記 + 署名済み Release APK ビルド      │
+#  │ tag push (v*.*.*)       │ 全ビルド + GitHub Releases に自動公開   │
+#  └─────────────────────────┴──────────────────────────────────────────┘
+#
+#  必要な GitHub Secrets（Settings → Secrets → Actions で設定）:
+#  - KEYSTORE_BASE64      : keytool で生成した .jks を base64 エンコードした文字列
+#  - KEYSTORE_PASSWORD    : キーストアのパスワード
+#  - KEY_ALIAS            : キーのエイリアス名
+#  - KEY_PASSWORD         : キーのパスワード
+##############################################################################
+
+name: CI / CD — Build & Release APK
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'   # v1.0.0 形式のタグのみ
+  pull_request:
+    branches:
+      - main
+      - develop
+
+# 同じブランチへの連続プッシュで古いワークフローをキャンセル
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '17'
+  # APK の出力パス（assembleRelease のデフォルト出力先）
+  RELEASE_APK_PATH: app/build/outputs/apk/release/app-release.apk
+  DEBUG_APK_PATH:   app/build/outputs/apk/debug/app-debug.apk
+
+jobs:
+  ##########################################################################
+  #  JOB 1: Lint & Unit Test
+  #  全トリガーで実行。失敗するとビルドジョブもスキップ。
+  ##########################################################################
+  lint-and-test:
+    name: 🔍 Lint & Unit Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 全履歴取得（バージョン番号計算用）
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: gradle
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Grant gradlew permission
+        run: chmod +x gradlew
+
+      # Lint
+      - name: Run Lint
+        run: ./gradlew lintDebug --stacktrace
+
+      - name: Upload Lint Report
+        uses: actions/upload-artifact@v4
+        if: always()   # Lint 失敗時もレポートをアップロード
+        with:
+          name: lint-report-${{ github.run_number }}
+          path: app/build/reports/lint-results-debug.html
+          retention-days: 7
+
+      # Unit Test
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Upload Test Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-report-${{ github.run_number }}
+          path: app/build/reports/tests/testDebugUnitTest/
+          retention-days: 7
+
+  ##########################################################################
+  #  JOB 2: Build Debug APK
+  #  lint-and-test が成功したら実行。
+  ##########################################################################
+  build-debug:
+    name: 🐛 Build Debug APK
+    runs-on: ubuntu-latest
+    needs: lint-and-test   # lint-and-test の完了を待つ
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: gradle
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Grant gradlew permission
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk-${{ github.run_number }}
+          path: ${{ env.DEBUG_APK_PATH }}
+          retention-days: 14
+
+  ##########################################################################
+  #  JOB 3: Build Signed Release APK
+  #  main ブランチへの push または v*.*.* タグのときのみ実行。
+  ##########################################################################
+  build-release:
+    name: 🚀 Build Signed Release APK
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    # main push またはタグ push のときだけ動かす
+    if: |
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: gradle
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Grant gradlew permission
+        run: chmod +x gradlew
+
+      # ── キーストアの復元 ────────────────────────────────────────────────
+      # Secrets に保存した Base64 文字列をデコードして .jks ファイルに復元する。
+      # ファイルはジョブ終了後に GitHub が自動削除するため外部に漏れない。
+      - name: Decode Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "Decoding keystore..."
+          echo "$KEYSTORE_BASE64" | base64 --decode > ${{ github.workspace }}/release.jks
+          # ファイルが正しく復元されたか確認（パスワードは表示しない）
+          keytool -list \
+            -keystore ${{ github.workspace }}/release.jks \
+            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
+            -alias "${{ secrets.KEY_ALIAS }}" \
+            -v 2>&1 | grep -E "^(Alias|Valid|Owner)" || true
+
+      # ── バージョン番号の決定 ─────────────────────────────────────────────
+      # タグ push なら "v1.2.3" → "1.2.3" を versionName に使用。
+      # 通常の push なら "main-<短縮SHA>" を使用。
+      - name: Determine version name
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION_NAME="${GITHUB_REF_NAME#v}"   # "v1.2.3" → "1.2.3"
+            VERSION_CODE=$(git rev-list --count HEAD)
+          else
+            SHORT_SHA=$(git rev-parse --short HEAD)
+            VERSION_NAME="main-${SHORT_SHA}"
+            VERSION_CODE=$(git rev-list --count HEAD)
+          fi
+          echo "version_name=${VERSION_NAME}" >> $GITHUB_OUTPUT
+          echo "version_code=${VERSION_CODE}"  >> $GITHUB_OUTPUT
+          echo "📦 versionName=${VERSION_NAME}, versionCode=${VERSION_CODE}"
+
+      # ── 署名済みリリース APK をビルド ────────────────────────────────────
+      # -P オプションで署名情報を Gradle に渡す。
+      # Secrets は環境変数経由で受け取り、コマンド引数に直接展開しない
+      # （ps コマンドで他プロセスから見えないようにするため）。
+      - name: Build Release APK
+        env:
+          STORE_FILE:     ${{ github.workspace }}/release.jks
+          STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS:      ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD:   ${{ secrets.KEY_PASSWORD }}
+          VERSION_NAME:   ${{ steps.version.outputs.version_name }}
+          VERSION_CODE:   ${{ steps.version.outputs.version_code }}
+        run: |
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file="$STORE_FILE" \
+            -Pandroid.injected.signing.store.password="$STORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD" \
+            -PversionName="$VERSION_NAME" \
+            -PversionCode="$VERSION_CODE" \
+            --stacktrace
+
+      # ── APK の検証 ───────────────────────────────────────────────────────
+      # apksigner で署名が正しいことを確認する
+      - name: Verify APK signature
+        run: |
+          APK_PATH="${{ env.RELEASE_APK_PATH }}"
+          echo "APK size: $(du -sh $APK_PATH | cut -f1)"
+          # Android SDK の build-tools を使用して検証
+          BUILD_TOOLS=$(ls $ANDROID_HOME/build-tools/ | sort -V | tail -1)
+          $ANDROID_HOME/build-tools/$BUILD_TOOLS/apksigner verify \
+            --verbose \
+            "$APK_PATH" 2>&1 | head -20
+
+      # ── キーストアファイルを確実に削除 ──────────────────────────────────
+      - name: Remove keystore file
+        if: always()   # ビルド失敗時も必ず実行
+        run: rm -f ${{ github.workspace }}/release.jks
+
+      # ── APK を Artifacts に保存（タグ以外の main push 用） ───────────────
+      - name: Upload Release APK as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk-${{ steps.version.outputs.version_name }}
+          path: ${{ env.RELEASE_APK_PATH }}
+          retention-days: 30
+
+      # ── APK ファイル名にバージョンを付与してリネーム ─────────────────────
+      - name: Rename APK with version
+        run: |
+          VERSION="${{ steps.version.outputs.version_name }}"
+          cp "${{ env.RELEASE_APK_PATH }}" \
+             "DeepSleepAlarm-v${VERSION}.apk"
+
+      # ── APK のメタ情報を後続ジョブに渡すための Output 設定 ──────────────
+      - name: Set release outputs
+        id: apk_info
+        run: |
+          VERSION="${{ steps.version.outputs.version_name }}"
+          echo "apk_name=DeepSleepAlarm-v${VERSION}.apk" >> $GITHUB_OUTPUT
+          echo "apk_path=DeepSleepAlarm-v${VERSION}.apk"  >> $GITHUB_OUTPUT
+
+      # ── リネームした APK を Artifacts に追加保存 ─────────────────────────
+      - name: Upload renamed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk_info.outputs.apk_name }}
+          path: ${{ steps.apk_info.outputs.apk_path }}
+          retention-days: 90
+
+    outputs:
+      version_name: ${{ steps.version.outputs.version_name }}
+      version_code: ${{ steps.version.outputs.version_code }}
+      apk_name:     ${{ steps.apk_info.outputs.apk_name }}
+
+  ##########################################################################
+  #  JOB 4: GitHub Releases に自動公開
+  #  v*.*.* タグ push のときのみ実行。build-release の成功が前提。
+  ##########################################################################
+  github-release:
+    name: 📣 Publish to GitHub Releases
+    runs-on: ubuntu-latest
+    needs: build-release
+    # タグ push のときだけ動かす
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    # GitHub Releases への書き込み権限
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── 前のジョブでビルドした APK をダウンロード ────────────────────────
+      - name: Download Release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-release.outputs.apk_name }}
+          path: ./release-artifacts/
+
+      # ── リリースノートを自動生成（前回タグからのコミット差分） ────────────
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          VERSION="${{ needs.build-release.outputs.version_name }}"
+          VERSION_CODE="${{ needs.build-release.outputs.version_code }}"
+
+          # 直前のタグを取得
+          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
+
+          if [ -z "$PREV_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" | head -20)
+          else
+            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)")
+          fi
+
+          # マルチライン文字列を GitHub Output に渡す
+          {
+            echo 'notes<<NOTES_EOF'
+            echo "## 熟睡アラーム v${VERSION}"
+            echo ""
+            echo "**ビルド情報**"
+            echo "- versionName: \`${VERSION}\`"
+            echo "- versionCode: \`${VERSION_CODE}\`"
+            echo "- ビルド日時: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "- コミット: \`${GITHUB_SHA:0:8}\`"
+            echo ""
+            echo "**動作環境**"
+            echo "- 対応 Android: 8.0 (API 26) 以上"
+            echo "- ターゲット: Android 14 (API 34)"
+            echo ""
+            echo "**変更内容**"
+            echo "$CHANGELOG"
+            echo ""
+            echo "---"
+            echo "**インストール方法**"
+            echo "1. 下記の \`DeepSleepAlarm-v${VERSION}.apk\` をダウンロード"
+            echo "2. Android の設定 → セキュリティ → 提供元不明のアプリ をオン"
+            echo "3. ダウンロードした APK をタップしてインストール"
+            echo 'NOTES_EOF'
+          } >> $GITHUB_OUTPUT
+
+      # ── GitHub Releases を作成して APK を添付 ────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "熟睡アラーム ${{ github.ref_name }}"
+          body: ${{ steps.release_notes.outputs.notes }}
+          draft: false        # 即座に公開（true にすると下書きで作成）
+          prerelease: false   # 正式リリースとして公開
+          files: |
+            ./release-artifacts/${{ needs.build-release.outputs.apk_name }}
+          # GITHUB_TOKEN は自動で付与されるため Secrets 設定不要
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── リリース完了サマリー ─────────────────────────────────────────────
+      - name: Post release summary
+        run: |
+          VERSION="${{ needs.build-release.outputs.version_name }}"
+          REPO="${{ github.repository }}"
+          echo "## ✅ リリース完了" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 項目 | 値 |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| バージョン | v${VERSION} |" >> $GITHUB_STEP_SUMMARY
+          echo "| リリースページ | https://github.com/${REPO}/releases/tag/v${VERSION} |" >> $GITHUB_STEP_SUMMARY
+          echo "| APK ファイル | DeepSleepAlarm-v${VERSION}.apk |" >> $GITHUB_STEP_SUMMARY

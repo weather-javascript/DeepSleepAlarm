@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/alarmFragment"
+        android:icon="@drawable/ic_alarm"
+        android:title="@string/nav_alarm" />
+
+    <item
+        android:id="@+id/statisticsFragment"
+        android:icon="@drawable/ic_bar_chart"
+        android:title="@string/nav_statistics" />
+
+    <item
+        android:id="@+id/snoreFragment"
+        android:icon="@drawable/ic_mic"
+        android:title="@string/nav_snore" />
+
+</menu>

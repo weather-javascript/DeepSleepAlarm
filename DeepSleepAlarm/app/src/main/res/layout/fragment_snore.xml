@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/colorBackground"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="いびき録音"
+        android:textColor="#FFFFFF"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp"
+        android:layout_marginStart="8dp" />
+
+    <TextView
+        android:id="@+id/tv_snore_summary"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="昨夜の録音はありません"
+        android:textColor="#9E9E9E"
+        android:textSize="13sp"
+        android:layout_marginBottom="16dp"
+        android:layout_marginStart="8dp" />
+
+    <!-- 録音リスト -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_snore_records"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingBottom="8dp" />
+
+    <!-- 録音がないときの空表示 -->
+    <LinearLayout
+        android:id="@+id/layout_empty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@drawable/ic_mic_off"
+            app:tint="#3D4A8A"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="いびき録音がありません"
+            android:textColor="#9E9E9E"
+            android:textSize="16sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="睡眠計測中に60dB以上の音が\n検知されると自動保存されます"
+            android:textColor="#616161"
+            android:textSize="13sp"
+            android:gravity="center"
+            android:layout_marginTop="8dp" />
+    </LinearLayout>
+
+</LinearLayout>

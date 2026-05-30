@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/colorBackground"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- ヘッダー -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="スマートアラーム"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="32dp" />
+
+        <!-- ─── アラーム時刻カード ─── -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="@color/colorSurface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="アラーム時刻"
+                    android:textColor="#9E9E9E"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="8dp" />
+
+                <!-- 大きな時刻表示 -->
+                <TextView
+                    android:id="@+id/tv_alarm_time"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="07:00"
+                    android:textColor="#FFFFFF"
+                    android:textSize="64sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:fontFamily="sans-serif-light"
+                    android:layout_marginBottom="16dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_set_time"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="時刻を変更"
+                    android:textColor="@color/colorPrimary"
+                    app:strokeColor="@color/colorAccent"
+                    app:strokeWidth="1dp"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ─── スマートウィンドウカード ─── -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="@color/colorSurface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:id="@+id/tv_smart_window_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="スマートウィンドウ: 30分前から検知"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="12dp" />
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/slider_smart_window"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:valueFrom="0"
+                    android:valueTo="60"
+                    android:stepSize="5"
+                    android:value="30"
+                    app:thumbColor="@color/colorAccent"
+                    app:trackColorActive="@color/colorAccent"
+                    app:trackColorInactive="#3D4A8A" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="オフ"
+                        android:textColor="#9E9E9E"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="60分"
+                        android:textColor="#9E9E9E"
+                        android:textSize="11sp"
+                        android:gravity="end" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="設定時刻より前の「眠りが浅いタイミング」を検知して起こします"
+                    android:textColor="#9E9E9E"
+                    android:textSize="12sp"
+                    android:layout_marginTop="8dp" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ─── アラーム音カード ─── -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            app:cardBackgroundColor="@color/colorSurface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="アラーム音"
+                    android:textColor="#9E9E9E"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="8dp" />
+
+                <!-- 選択中の曲名 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="12dp">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/ic_music_note"
+                        app:tint="@color/colorAccent"
+                        android:layout_marginEnd="12dp" />
+
+                    <TextView
+                        android:id="@+id/tv_selected_music"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="デフォルトアラーム音"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp"
+                        android:maxLines="1"
+                        android:ellipsize="end" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_select_music"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="音楽ファイルを選択"
+                    android:textColor="@color/colorPrimary"
+                    app:strokeColor="@color/colorAccent"
+                    app:strokeWidth="1dp"
+                    app:icon="@drawable/ic_folder_music"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ─── 計測開始ボタン ─── -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_start_monitoring"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:text="計測を開始"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:backgroundTint="@color/colorAccent"
+            app:cornerRadius="32dp"
+            app:icon="@drawable/ic_bedtime"
+            app:iconGravity="textStart"
+            app:iconPadding="8dp" />
+
+        <!-- 計測中ステータス表示（計測中のみ表示） -->
+        <LinearLayout
+            android:id="@+id/layout_monitoring_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="16dp"
+            android:visibility="gone">
+
+            <View
+                android:id="@+id/view_pulse"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:background="@drawable/bg_pulse_dot"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="睡眠計測中..."
+                android:textColor="@color/colorAccent"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
